@@ -3,8 +3,8 @@ import vlc
 from time import sleep
 
 with open('creds.txt', 'r') as f:
-    CLIENT_ID = f.readline().strip()
-    CLIENT_SECRET = f.readline().strip()
+    CLIENT_ID = f.readline().strip().split(' = ')[1]
+    CLIENT_SECRET = f.readline().strip().split(' = ')[1]
 
 REQUEST_RESOLVE_BASE = 'https://api.soundcloud.com/resolve'
 REQUEST_URL = 'url=https://soundcloud.com/woofsalot/likes'
@@ -12,20 +12,31 @@ CLIENT_URL_APPEND = 'client_id=' + CLIENT_ID
 AND = '&'
 START_QUERY = '?'
 
-res = requests.get(REQUEST_RESOLVE_BASE + START_QUERY + REQUEST_URL + AND + CLIENT_URL_APPEND)
+request_query = REQUEST_RESOLVE_BASE + START_QUERY + REQUEST_URL + AND + CLIENT_URL_APPEND
+res = requests.get(request_query)
 res_json = res.json()
+song_titles = [song['title'] for song in res_json]
 
-# import json
-# print(json.dumps(res.json()[0], indent=2))
+def select_song(song_list):
+    for i, song in enumerate(song_list):
+        print(str(i) + ": " + song)
+    return int(input('select song number: '))
 
-print('streamable: ' + str(res_json[0]['streamable']))
+while True:
+    song_num = select_song(song_titles)
+    stream_url = res_json[song_num]['stream_url'] + START_QUERY + CLIENT_URL_APPEND
 
-stream_url = res_json[0]['stream_url'] + START_QUERY + CLIENT_URL_APPEND
-print('stream_url: ' + stream_url)
+    p = vlc.MediaPlayer(stream_url)
 
-p = vlc.MediaPlayer(stream_url)
-p.play()
+    volume = int(input('volume: '))
+    res = p.audio_set_volume(volume) # 0 = muted, 100 = 0 db (default of 99 ... lol)
 
-sleep(5)
-while p.is_playing():
-    sleep(1)
+    p.play()
+    sleep(5) # time for it to start playing...
+
+    interrupted = False
+    while p.is_playing():
+        query_during_song = input('stop: ')
+        if query_during_song == 'y':
+            p.stop()
+            break
